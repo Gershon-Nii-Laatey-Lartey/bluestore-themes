@@ -1,0 +1,25 @@
+User-agent: *
+Allow: /
+
+# Disallow admin and private areas
+Disallow: /admin/
+Disallow: /api/
+Disallow: /private/
+Disallow: /temp/
+Disallow: /draft/
+
+# Allow important pages
+Allow: /search
+Allow: /category/
+Allow: /product/
+Allow: /vendor/
+Allow: /about
+Allow: /contact
+Allow: /terms
+Allow: /privacy
+
+# Sitemap location
+Sitemap: https://bluestoregh.web.app/sitemap.xml
+
+# Crawl delay (optional - be respectful to servers)
+Crawl-delay: 1
