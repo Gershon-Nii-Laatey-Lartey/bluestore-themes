@@ -54,13 +54,25 @@ const MyAds = () => {
       setLoading(true);
       const userProducts = await productService.getProductSubmissions();
       setProducts(userProducts);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error loading products:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load your products. Please try again later.",
-        variant: "destructive"
-      });
+      
+      // Check if this is a "no data" error or a real error
+      const isNoDataError = error?.code === 'PGRST116' || 
+                           error?.message?.includes('no rows') ||
+                           error?.message?.includes('0 rows');
+      
+      if (isNoDataError) {
+        // This is not a real error, just no products found
+        setProducts([]);
+      } else {
+        // This is a real error
+        toast({
+          title: "Error",
+          description: "Failed to load your products. Please try again later.",
+          variant: "destructive"
+        });
+      }
     } finally {
       setLoading(false);
     }

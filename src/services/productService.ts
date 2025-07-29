@@ -134,6 +134,7 @@ class ProductService {
     const { data, error } = await supabase
       .from('product_submissions')
       .select('*')
+      .eq('user_id', (await supabase.auth.getUser()).data.user?.id)
       .order('created_at', { ascending: false });
 
     if (error) {
