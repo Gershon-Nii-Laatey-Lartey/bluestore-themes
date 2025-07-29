@@ -14,7 +14,6 @@ interface LayoutProps {
 
 // Pages where the floating action button should NOT appear
 const EXCLUDED_PAGES = [
-  "/chat",
   "/chat-rooms", 
   "/publish-ad",
   "/profile",
@@ -42,7 +41,6 @@ const EXCLUDED_PAGES = [
   "/kyc",
   "/settings",
   "/notifications",
-  "/favorites",
   "/my-ads",
   "/vendor-required",
   "/create-vendor-profile",
@@ -100,7 +98,7 @@ export const Layout = ({
 
         {/* Floating Action Button - Mobile Only */}
         {shouldShowFAB && (
-          <div className="md:hidden fixed bottom-20 right-4 z-50">
+          <div className="md:hidden fixed bottom-24 right-4 z-50">
             <Button
               size="lg"
               className="h-14 w-14 rounded-xl bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-600/25 border-0"

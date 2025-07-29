@@ -10,11 +10,11 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Eye, Share, Edit, Trash2, Archive, AlertTriangle, RotateCcw, Lightbulb, TrendingUp, Zap, MoreVertical, Star } from "lucide-react";
+import { Eye, Share, Edit, Trash2, Archive, AlertTriangle, RotateCcw, Lightbulb, TrendingUp, Zap, MoreVertical, Star, Plus } from "lucide-react";
 import { productService } from "@/services/productService";
 import { ProductSubmission } from "@/types/product";
 import { useAuth } from "@/hooks/useAuth";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { 
@@ -41,6 +41,7 @@ const MyAds = () => {
   const { toast } = useToast();
   const { user } = useAuth();
   const isMobile = useIsMobile();
+  const navigate = useNavigate();
 
   useEffect(() => {
     if (user) {
@@ -54,9 +55,10 @@ const MyAds = () => {
       const userProducts = await productService.getProductSubmissions();
       setProducts(userProducts);
     } catch (error) {
+      console.error('Error loading products:', error);
       toast({
         title: "Error",
-        description: "Failed to load your products",
+        description: "Failed to load your products. Please try again later.",
         variant: "destructive"
       });
     } finally {
@@ -73,9 +75,10 @@ const MyAds = () => {
       });
       loadMyProducts();
     } catch (error) {
+      console.error('Error closing ad:', error);
       toast({
         title: "Error",
-        description: "Failed to close ad",
+        description: "Failed to close ad. Please try again later.",
         variant: "destructive"
       });
     }
@@ -90,9 +93,10 @@ const MyAds = () => {
       });
       loadMyProducts();
     } catch (error) {
+      console.error('Error reactivating ad:', error);
       toast({
         title: "Error",
-        description: "Failed to reactivate ad",
+        description: "Failed to reactivate ad. Please try again later.",
         variant: "destructive"
       });
     }
@@ -107,9 +111,10 @@ const MyAds = () => {
       });
       loadMyProducts();
     } catch (error) {
+      console.error('Error deleting ad:', error);
       toast({
         title: "Error",
-        description: "Failed to delete ad",
+        description: "Failed to delete ad. Please try again later.",
         variant: "destructive"
       });
     }
@@ -124,9 +129,10 @@ const MyAds = () => {
       });
       loadMyProducts();
     } catch (error) {
+      console.error('Error boosting ad:', error);
       toast({
         title: "Error",
-        description: "Failed to boost ad",
+        description: "Failed to boost ad. Please try again later.",
         variant: "destructive"
       });
     }
@@ -145,9 +151,10 @@ const MyAds = () => {
       setEditingAd(null);
       loadMyProducts();
     } catch (error) {
+      console.error('Error updating ad:', error);
       toast({
         title: "Error",
-        description: "Failed to update ad",
+        description: "Failed to update ad. Please try again later.",
         variant: "destructive"
       });
     } finally {
@@ -342,8 +349,18 @@ const MyAds = () => {
         
         {products.length === 0 ? (
           <Card>
-            <CardContent className="p-6">
-              <p className="text-gray-500">You haven't published any ads yet. Start by creating your first listing!</p>
+            <CardContent className="p-8 text-center">
+              <div className="mb-4">
+                <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <span className="text-2xl">📱</span>
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">No ads yet</h3>
+                <p className="text-gray-600 mb-4">You haven't published any ads yet. Start by creating your first listing to reach potential buyers!</p>
+                <Button onClick={() => navigate("/publish-ad")} className="bg-blue-600 hover:bg-blue-700">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Create Your First Ad
+                </Button>
+              </div>
             </CardContent>
           </Card>
         ) : (
