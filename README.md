@@ -1,73 +1,185 @@
-# Welcome to your Lovable project
+# BlueStore - Ghana's Premier Marketplace
 
-## Project info
+BlueStore is a modern, full-featured marketplace application built for Ghana, enabling users to buy, sell, and discover products with ease. Built with React, TypeScript, and Supabase, it provides a seamless e-commerce experience with real-time features.
 
-**URL**: https://lovable.dev/projects/51ab0abf-e9c6-4ad5-8a8d-212103fef371
+## 🚀 Features
 
-## How can I edit this code?
+### For Users
+- **Product Discovery**: Browse products by category, search, or explore featured items
+- **Real-time Chat**: Communicate with sellers through integrated chat system
+- **Favorites System**: Save and manage favorite products
+- **Location-based Search**: Find products near you with location services
+- **Mobile-First Design**: Optimized for mobile devices with responsive UI
+- **Push Notifications**: Stay updated with real-time notifications
+- **Vendor Profiles**: Create and manage your storefront
+- **KYC Verification**: Secure identity verification for trusted transactions
 
-There are several ways of editing your application.
+### For Sellers
+- **Easy Product Listing**: Simple multi-step form for creating listings
+- **Image Optimization**: Automatic image processing and optimization
+- **Ad Management**: Track, edit, and manage your product listings
+- **Analytics Dashboard**: Monitor views, clicks, and engagement
+- **Boost Features**: Promote your ads with boost and 2x boost options
+- **Storefront Management**: Customize your vendor profile and store
 
-**Use Lovable**
+### For Admins
+- **Comprehensive Dashboard**: Monitor platform activity and user engagement
+- **User Management**: Manage users, vendors, and customer support
+- **Content Moderation**: Review and approve product submissions
+- **Analytics & Reports**: Detailed insights into platform usage
+- **Support System**: Handle customer inquiries and support tickets
+- **KYC Management**: Verify user identities and manage verification process
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/51ab0abf-e9c6-4ad5-8a8d-212103fef371) and start prompting.
+## 🛠️ Technology Stack
 
-Changes made via Lovable will be committed automatically to this repo.
+- **Frontend**: React 18, TypeScript, Vite
+- **UI Framework**: Tailwind CSS, shadcn/ui components
+- **Backend**: Supabase (PostgreSQL, Real-time, Auth, Storage)
+- **State Management**: React Query (TanStack Query)
+- **Routing**: React Router v6
+- **Real-time**: Supabase Realtime
+- **Payments**: Paystack integration
+- **Deployment**: Firebase Hosting
 
-**Use your preferred IDE**
+## 📱 Key Pages & Features
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+### Core Pages
+- **Home**: Featured products, categories, clearance sales
+- **Search**: Advanced filtering and sorting
+- **Product Details**: Rich product information with chat integration
+- **Chat**: Real-time messaging between buyers and sellers
+- **My Ads**: Manage your product listings
+- **Profile**: User account management
+- **Vendor Profile**: Storefront and business information
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+### Admin Features
+- **Dashboard**: Platform overview and analytics
+- **User Management**: Comprehensive user administration
+- **Product Moderation**: Review and approve submissions
+- **Support System**: Handle customer inquiries
+- **KYC Management**: Identity verification workflow
 
-Follow these steps:
+## 🚀 Getting Started
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+### Prerequisites
+- Node.js 18+ 
+- npm or yarn
+- Supabase account
+- Firebase account (for deployment)
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+### Installation
 
-# Step 3: Install the necessary dependencies.
-npm i
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/Gershon-Nii-Laatey-Lartey/bluestore-themes.git
+   cd bluestore-themes
+   ```
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
+2. **Install dependencies**
+   ```bash
+   npm install
+   ```
+
+3. **Environment Setup**
+   Create a `.env` file in the root directory:
+   ```env
+   VITE_SUPABASE_URL=your_supabase_url
+   VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+   VITE_PAYSTACK_PUBLIC_KEY=your_paystack_key
+   ```
+
+4. **Database Setup**
+   ```bash
+   # Apply Supabase migrations
+   npx supabase db push
+   ```
+
+5. **Start development server**
+   ```bash
+   npm run dev
+   ```
+
+## 🗄️ Database Schema
+
+### Core Tables
+- `product_submissions`: Product listings and metadata
+- `users`: User accounts and profiles
+- `vendor_profiles`: Seller storefront information
+- `chat_rooms`: Real-time messaging
+- `notifications`: User notifications
+- `kyc_submissions`: Identity verification data
+- `ad_analytics`: Product performance metrics
+
+## 🔧 Development
+
+### Project Structure
+```
+src/
+├── components/          # Reusable UI components
+│   ├── admin/          # Admin-specific components
+│   ├── auth/           # Authentication components
+│   ├── chat/           # Chat functionality
+│   ├── home/           # Homepage components
+│   ├── product/        # Product-related components
+│   ├── publish-ad/     # Ad creation forms
+│   └── ui/             # Base UI components
+├── hooks/              # Custom React hooks
+├── pages/              # Page components
+├── services/           # API and business logic
+├── types/              # TypeScript type definitions
+└── utils/              # Utility functions
 ```
 
-**Edit a file directly in GitHub**
+### Key Features Implementation
+- **Real-time Chat**: Supabase Realtime with polling fallback
+- **Image Optimization**: Client-side processing with blur placeholders
+- **Location Services**: Cached location data with context
+- **Mobile Navigation**: Floating action button and responsive design
+- **Error Handling**: Comprehensive error management and user feedback
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+## 🚀 Deployment
 
-**Use GitHub Codespaces**
+### Firebase Deployment
+```bash
+npm run build
+firebase deploy
+```
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+### Environment Variables
+Ensure all required environment variables are set in your deployment platform:
+- Supabase configuration
+- Paystack API keys
+- Analytics tracking IDs
 
-## What technologies are used for this project?
+## 🤝 Contributing
 
-This project is built with:
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+## 📄 License
 
-## How can I deploy this project?
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-Simply open [Lovable](https://lovable.dev/projects/51ab0abf-e9c6-4ad5-8a8d-212103fef371) and click on Share -> Publish.
+## 🆘 Support
 
-## Can I connect a custom domain to my Lovable project?
+For support and questions:
+- Create an issue in this repository
+- Contact the development team
+- Check the documentation in the `/docs` folder
 
-Yes, you can!
+## 🎯 Roadmap
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+- [ ] Advanced search filters
+- [ ] Mobile app (React Native)
+- [ ] AI-powered product recommendations
+- [ ] Multi-language support
+- [ ] Advanced analytics dashboard
+- [ ] Social media integration
+- [ ] Escrow payment system
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+---
+
+**Built with ❤️ for Ghana's digital marketplace**
