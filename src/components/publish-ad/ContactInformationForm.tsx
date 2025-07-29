@@ -4,8 +4,8 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useState, useEffect } from "react";
-import { locationService, Location } from "@/services/locationService";
 import { useToast } from "@/hooks/use-toast";
+import { useLocationContext } from "@/contexts/LocationContext";
 
 interface ContactInformationFormProps {
   formData: {
@@ -24,18 +24,22 @@ export const ContactInformationForm = ({
   onLocationChange,
   loadingProfile 
 }: ContactInformationFormProps) => {
-  const [regions, setRegions] = useState<Location[]>([]);
-  const [cities, setCities] = useState<Location[]>([]);
-  const [towns, setTowns] = useState<Location[]>([]);
+  const [cities, setCities] = useState<any[]>([]);
+  const [towns, setTowns] = useState<any[]>([]);
   const [selectedRegion, setSelectedRegion] = useState<string>("");
   const [selectedCity, setSelectedCity] = useState<string>("");
   const [selectedTown, setSelectedTown] = useState<string>("");
-  const [loading, setLoading] = useState(false);
   const { toast } = useToast();
-
-  useEffect(() => {
-    loadRegions();
-  }, []);
+  
+  // Use the location context
+  const { 
+    regions, 
+    loadingRegions, 
+    loadingCities, 
+    loadingTowns: contextLoadingTowns,
+    getCitiesByRegion, 
+    getTownsByCity 
+  } = useLocationContext();
 
   // Parse existing location to set initial values
   useEffect(() => {
@@ -49,12 +53,14 @@ export const ContactInformationForm = ({
         const region = regions.find(r => r.name === regionName);
         if (region) {
           setSelectedRegion(region.id);
-          loadCities(region.id).then((citiesData) => {
+          getCitiesByRegion(region.id).then((citiesData) => {
+            setCities(citiesData);
             const city = citiesData.find(c => c.name === cityName);
             if (city) {
               setSelectedCity(city.id);
               if (townName) {
-                loadTowns(city.id).then((townsData) => {
+                getTownsByCity(city.id).then((townsData) => {
+                  setTowns(townsData);
                   const town = townsData.find(t => t.name === townName);
                   if (town) {
                     setSelectedTown(town.id);
@@ -66,65 +72,19 @@ export const ContactInformationForm = ({
         }
       }
     }
-  }, [formData.location, regions]);
+  }, [formData.location, regions, getCitiesByRegion, getTownsByCity]);
 
-  const loadRegions = async () => {
-    try {
-      setLoading(true);
-      const regionsData = await locationService.getLocationsByType('region');
-      setRegions(regionsData);
-    } catch (error) {
-      console.error('Error loading regions:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load regions",
-        variant: "destructive"
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
 
-  const loadCities = async (regionId: string) => {
-    try {
-      const citiesData = await locationService.getLocationsByParent(regionId);
-      setCities(citiesData);
-      return citiesData;
-    } catch (error) {
-      console.error('Error loading cities:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load cities",
-        variant: "destructive"
-      });
-      return [];
-    }
-  };
 
-  const loadTowns = async (cityId: string) => {
-    try {
-      const townsData = await locationService.getLocationsByParent(cityId);
-      setTowns(townsData);
-      return townsData;
-    } catch (error) {
-      console.error('Error loading towns:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load towns",
-        variant: "destructive"
-      });
-      return [];
-    }
-  };
-
-  const handleRegionChange = (regionId: string) => {
+  const handleRegionChange = async (regionId: string) => {
     setSelectedRegion(regionId);
     setSelectedCity("");
     setSelectedTown("");
     setCities([]);
     setTowns([]);
     if (regionId) {
-      loadCities(regionId);
+      const citiesData = await getCitiesByRegion(regionId);
+      setCities(citiesData);
     }
     // Clear the location when region changes
     if (onLocationChange) {
@@ -132,13 +92,14 @@ export const ContactInformationForm = ({
     }
   };
 
-  const handleCityChange = (cityId: string) => {
+  const handleCityChange = async (cityId: string) => {
     setSelectedCity(cityId);
     setSelectedTown("");
     setTowns([]);
     
     if (cityId) {
-      loadTowns(cityId);
+      const townsData = await getTownsByCity(cityId);
+      setTowns(townsData);
       // Update location if no town is required
       updateLocationString(selectedRegion, cityId, "");
     }
@@ -205,9 +166,9 @@ export const ContactInformationForm = ({
         <div className="grid md:grid-cols-3 gap-4">
           <div>
             <Label>Region *</Label>
-            <Select value={selectedRegion} onValueChange={handleRegionChange} disabled={loading || loadingProfile}>
+            <Select value={selectedRegion} onValueChange={handleRegionChange} disabled={loadingRegions || loadingProfile}>
               <SelectTrigger className="mt-1">
-                <SelectValue placeholder="Select a region" />
+                <SelectValue placeholder={loadingRegions ? "Loading regions..." : "Select a region"} />
               </SelectTrigger>
               <SelectContent className="bg-white border shadow-lg z-50">
                 {regions.map((region) => (
@@ -221,9 +182,9 @@ export const ContactInformationForm = ({
 
           <div>
             <Label>City *</Label>
-            <Select value={selectedCity} onValueChange={handleCityChange} disabled={!selectedRegion || loadingProfile}>
+            <Select value={selectedCity} onValueChange={handleCityChange} disabled={!selectedRegion || loadingProfile || loadingCities}>
               <SelectTrigger className="mt-1">
-                <SelectValue placeholder="Select a city" />
+                <SelectValue placeholder={loadingCities ? "Loading cities..." : "Select a city"} />
               </SelectTrigger>
               <SelectContent className="bg-white border shadow-lg z-50">
                 {cities.map((city) => (
@@ -237,9 +198,9 @@ export const ContactInformationForm = ({
 
           <div>
             <Label>Town (Optional)</Label>
-            <Select value={selectedTown} onValueChange={handleTownChange} disabled={!selectedCity || loadingProfile}>
+            <Select value={selectedTown} onValueChange={handleTownChange} disabled={!selectedCity || loadingProfile || contextLoadingTowns}>
               <SelectTrigger className="mt-1">
-                <SelectValue placeholder="Select a town" />
+                <SelectValue placeholder={contextLoadingTowns ? "Loading towns..." : "Select a town"} />
               </SelectTrigger>
               <SelectContent className="bg-white border shadow-lg z-50">
                 {towns.map((town) => (

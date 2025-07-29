@@ -12,7 +12,7 @@ interface SEOHeadProps {
 }
 
 export const SEOHead = ({
-  title = "BlueStore - Ghana's Premier Online Marketplace",
+  title = "BlueStore - Ghana's Online Marketplace",
   description = "BlueStore is Ghana's leading online marketplace. Buy and sell smartphones, laptops, electronics, fashion, automotive parts, and more. Safe, secure, and trusted platform for Ghanaians.",
   keywords = "Ghana marketplace, online shopping Ghana, buy sell Ghana, electronics Ghana, smartphones Ghana, laptops Ghana, fashion Ghana, automotive Ghana",
   image = "https://bluestoregh.web.app/og-image.jpg",

@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
 import { storefrontService } from "@/services/storefrontService";
 import { vendorService } from "@/services/vendorService";
 import { useQuery } from "@tanstack/react-query";
@@ -27,6 +28,7 @@ import { StorefrontCustomizer } from "@/components/vendor/StorefrontCustomizer";
 const StorefrontManager = () => {
   const [isCustomizerOpen, setIsCustomizerOpen] = useState(false);
   const { toast } = useToast();
+  const { user } = useAuth();
 
   const { data: vendorProfile, isLoading, refetch } = useQuery({
     queryKey: ['vendor-profile'],
@@ -100,7 +102,7 @@ const StorefrontManager = () => {
                 You don't have an active storefront yet. Create one to get started.
               </p>
               <Button asChild>
-                <a href="/my-vendor-profile">Go to Vendor Profile</a>
+                <a href={`/vendor/${user?.id}`}>Go to Vendor Profile</a>
               </Button>
             </CardContent>
           </Card>

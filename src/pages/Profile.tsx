@@ -13,21 +13,23 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-const menuItems = [
-  { icon: Plus, label: "Publish Ad", href: "/publish-ad", description: "Create and publish new product listings" },
-  { icon: ShoppingBag, label: "My Ads", href: "/my-ads", description: "Manage your published advertisements" },
-  { icon: Store, label: "My Vendor Profile", href: "/my-vendor-profile", description: "View and edit your vendor profile" },
-  { icon: Package, label: "Active Packages", href: "/active-packages", description: "Track your subscription packages" },
-  { icon: Bell, label: "Notifications", href: "/notifications", description: "View your notifications and alerts" },
-  { icon: Settings, label: "Settings", href: "/settings", description: "Manage your account settings" },
-  { icon: HelpCircle, label: "Help & Support", href: "/support", description: "Get help and contact support" },
-];
+
 
 const Profile = () => {
   const { user, profile, signOut } = useAuth();
   const { publishedAds, favorites, loading: statsLoading } = useProfileStats();
   const [editModalOpen, setEditModalOpen] = useState(false);
   const isMobile = useIsMobile();
+
+  const menuItems = [
+    { icon: Plus, label: "Publish Ad", href: "/publish-ad", description: "Create and publish new product listings" },
+    { icon: ShoppingBag, label: "My Ads", href: "/my-ads", description: "Manage your published advertisements" },
+    { icon: Store, label: "My Vendor Profile", href: `/vendor/${user?.id}`, description: "View and edit your vendor profile" },
+    { icon: Package, label: "Active Packages", href: "/active-packages", description: "Track your subscription packages" },
+    { icon: Bell, label: "Notifications", href: "/notifications", description: "View your notifications and alerts" },
+    { icon: Settings, label: "Settings", href: "/settings", description: "Manage your account settings" },
+    { icon: HelpCircle, label: "Help & Support", href: "/support", description: "Get help and contact support" },
+  ];
 
   const handleSignOut = async () => {
     await signOut();
@@ -192,7 +194,7 @@ const Profile = () => {
             )}
 
             {/* Menu Items */}
-            <div className="space-y-3">
+            <div className="grid gap-y-3">
               {menuItems.map((item) => (
                 <Link key={item.href} to={item.href}>
                   <Card className="w-full hover:shadow-md transition-shadow cursor-pointer">

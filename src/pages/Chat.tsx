@@ -35,6 +35,7 @@ const Chat = () => {
   const [loading, setLoading] = useState(false);
   const [messagesLoading, setMessagesLoading] = useState(true);
   const [showSidebar, setShowSidebar] = useState(false);
+  const subscriptionRef = useRef<any>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -43,6 +44,22 @@ const Chat = () => {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  // Cleanup subscription on unmount
+  useEffect(() => {
+    return () => {
+      if (subscriptionRef.current) {
+        console.log('Cleaning up subscription on unmount');
+        if (subscriptionRef.current.type === 'polling') {
+          clearInterval(subscriptionRef.current.interval);
+        } else {
+          supabase.removeChannel(subscriptionRef.current);
+        }
+      }
+    };
+  }, []);
+
+
 
   const ChatSkeleton = () => (
     <div className="h-screen flex flex-col">
@@ -97,10 +114,12 @@ const Chat = () => {
     if (!user || !sellerId) return null;
 
     try {
+      console.log('Finding or creating chat room for user:', user.id, 'seller:', sellerId);
       let existingRoom = null;
 
       // If roomId is provided, use that room
       if (roomId) {
+        console.log('Using provided roomId:', roomId);
         const { data: room } = await supabase
           .from('chat_rooms')
           .select('*')
@@ -108,11 +127,13 @@ const Chat = () => {
           .single();
 
         if (room) {
+          console.log('Found room by roomId:', room.id);
           return room;
         }
       }
 
       // Look for existing room between these users for this product
+      console.log('Looking for existing room between users');
       const { data: roomsByParticipants } = await supabase
         .from('chat_rooms')
         .select('*')
@@ -121,10 +142,12 @@ const Chat = () => {
 
       if (roomsByParticipants && roomsByParticipants.length > 0) {
         existingRoom = roomsByParticipants[0];
+        console.log('Found existing room:', existingRoom.id);
         return existingRoom;
       }
 
       // If no existing room found, create new one
+      console.log('Creating new chat room');
       const { data: newRoom, error } = await supabase
         .from('chat_rooms')
         .insert({
@@ -136,6 +159,7 @@ const Chat = () => {
         .single();
 
       if (error) throw error;
+      console.log('Created new room:', newRoom.id);
       return newRoom;
     } catch (error) {
       console.error('Error finding/creating chat room:', error);
@@ -167,6 +191,69 @@ const Chat = () => {
     }
   };
 
+  const subscribeToMessages = (roomId: string) => {
+    console.log('Setting up subscription for room:', roomId);
+    
+    // Clean up existing subscription/interval
+    if (subscriptionRef.current) {
+      console.log('Removing existing subscription');
+      if (subscriptionRef.current.type === 'polling') {
+        clearInterval(subscriptionRef.current.interval);
+      } else {
+        supabase.removeChannel(subscriptionRef.current);
+      }
+    }
+
+    // Since real-time is not working due to table setup, use efficient polling
+    console.log('Using efficient polling instead of real-time');
+    startPolling(roomId);
+  };
+
+  const startPolling = (roomId: string) => {
+    console.log('Starting efficient polling for room:', roomId);
+    
+    // Store the last message timestamp to only fetch newer messages
+    let lastMessageTime = new Date().toISOString();
+    
+    const pollInterval = setInterval(async () => {
+      try {
+        const { data: newMessages, error } = await supabase
+          .from('chat_messages')
+          .select('*')
+          .eq('room_id', roomId)
+          .gt('sent_at', lastMessageTime)
+          .order('sent_at', { ascending: true });
+
+        if (error) throw error;
+
+        if (newMessages && newMessages.length > 0) {
+          setMessages(prev => {
+            const existingIds = new Set(prev.map(msg => msg.id));
+            const uniqueNewMessages = newMessages.filter(msg => !existingIds.has(msg.id));
+            if (uniqueNewMessages.length > 0) {
+              console.log('Polling found new messages:', uniqueNewMessages.length);
+              // Update the last message time to the newest message
+              lastMessageTime = uniqueNewMessages[uniqueNewMessages.length - 1].sent_at;
+              return [...prev, ...uniqueNewMessages];
+            }
+            return prev;
+          });
+        }
+      } catch (error) {
+        console.error('Polling error:', error);
+      }
+    }, 1000); // Poll every 1 second for more responsive experience
+
+    // Store the interval ID for cleanup
+    subscriptionRef.current = { type: 'polling', interval: pollInterval };
+    
+    return () => {
+      if (subscriptionRef.current && subscriptionRef.current.type === 'polling') {
+        clearInterval(subscriptionRef.current.interval);
+      }
+    };
+  };
+
   const initializeChat = async () => {
     if (!user || !sellerId) return;
 
@@ -185,6 +272,11 @@ const Chat = () => {
       }
 
       setChatRoom(room);
+
+      // Set up real-time subscription for messages
+      console.log('Setting up subscription for room:', room.id);
+      subscribeToMessages(room.id);
+      console.log('Subscription setup completed for room:', room.id);
 
       // Fetch seller and product details
       if (productId) {
@@ -225,17 +317,31 @@ const Chat = () => {
   const sendMessage = async () => {
     if (!message.trim() || !chatRoom || !user) return;
 
+    console.log('Sending message:', message.trim());
+    console.log('Chat room:', chatRoom.id);
+    console.log('User:', user.id);
+
     try {
-      const { error } = await supabase
+      const { data: newMessage, error } = await supabase
         .from('chat_messages')
         .insert({
           room_id: chatRoom.id,
           sender_id: user.id,
           receiver_id: sellerId,
           message_text: message.trim()
-        });
+        })
+        .select()
+        .single();
 
       if (error) throw error;
+
+      console.log('Message sent successfully:', newMessage);
+
+      // Add the new message to local state immediately
+      setMessages(prev => {
+        console.log('Adding message to local state, prev count:', prev.length);
+        return [...prev, newMessage];
+      });
 
       // Track message for analytics if productId is available
       if (productId) {
@@ -245,6 +351,12 @@ const Chat = () => {
       }
 
       setMessage("");
+      
+      // Force scroll to bottom after sending
+      setTimeout(() => {
+        scrollToBottom();
+      }, 100);
+      
     } catch (error) {
       console.error('Error sending message:', error);
       toast({

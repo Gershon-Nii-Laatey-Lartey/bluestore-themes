@@ -4,11 +4,11 @@ import { MobileHeader } from "@/components/MobileHeader";
 import { Filter, SlidersHorizontal, X, ChevronDown, MapPin, DollarSign, Calendar, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { FeaturedProducts } from "@/components/home/FeaturedProducts";
-import { useState, useEffect } from "react";
+import { useState, useEffect, memo } from "react";
 import { productService } from "@/services/productService";
 import { ProductSubmission } from "@/types/product";
 import { useToast } from "@/hooks/use-toast";
-import { useLocation } from "react-router-dom";
+import { useLocation, useSearchParams } from "react-router-dom";
 import { searchService } from "@/services/searchService";
 import { useUserLocation } from "@/hooks/useUserLocation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -18,8 +18,204 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { Slider } from "@/components/ui/slider";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import { useIsMobile } from "@/hooks/use-mobile";
+
+// Memoized FilterDialog component to prevent re-renders
+const FilterDialog = memo(({ 
+  showFilters, 
+  setShowFilters, 
+  activeFilters, 
+  filters, 
+  setFilters, 
+  clearFilters,
+  sortOptions,
+  categories,
+  conditions,
+  dateRanges
+}: {
+  showFilters: boolean;
+  setShowFilters: (show: boolean) => void;
+  activeFilters: string[];
+  filters: any;
+  setFilters: (filters: any) => void;
+  clearFilters: () => void;
+  sortOptions: any[];
+  categories: string[];
+  conditions: string[];
+  dateRanges: any[];
+}) => {
+  const isMobile = useIsMobile();
+  const handleOpenChange = (open: boolean) => {
+    if (!open) {
+      // Ensure focus is properly managed when closing
+      setTimeout(() => {
+        setShowFilters(false);
+      }, 0);
+    } else {
+      setShowFilters(true);
+    }
+  };
+
+  return (
+    <Dialog open={showFilters} onOpenChange={handleOpenChange}>
+      <DialogTrigger asChild>
+        <Button variant="outline" size="sm" className="flex items-center space-x-2">
+          <Filter className="h-4 w-4" />
+          <span>Filter</span>
+          {activeFilters.length > 0 && (
+            <Badge variant="secondary" className="ml-1">
+              {activeFilters.length}
+            </Badge>
+          )}
+        </Button>
+      </DialogTrigger>
+      <DialogContent
+        className={
+          isMobile
+            ? "dialog-slide-in-up bg-background z-50 rounded-2xl mt-4 mb-4 mx-auto max-w-[calc(100vw-1rem)]"
+            : "max-w-md max-h-[80vh] overflow-y-auto"
+        }
+      >
+        <DialogHeader>
+          <DialogTitle className="flex items-center justify-between">
+            <span>Filters & Sort</span>
+            {activeFilters.length > 0 && (
+              <Button variant="ghost" size="sm" onClick={clearFilters}>
+                <X className="h-4 w-4" />
+                Clear All
+              </Button>
+            )}
+          </DialogTitle>
+          <DialogDescription>
+            Filter and sort search results to find exactly what you're looking for.
+          </DialogDescription>
+        </DialogHeader>
+        
+        <div className="space-y-6">
+          {/* Sort Options */}
+          <div>
+            <Label className="text-sm font-medium">Sort By</Label>
+            <Select value={filters.sortBy} onValueChange={(value) => setFilters(prev => ({ ...prev, sortBy: value }))}>
+              <SelectTrigger className="mt-2">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {sortOptions.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Category Filter */}
+          <div>
+            <Label className="text-sm font-medium">Category</Label>
+            <Select value={filters.category} onValueChange={(value) => setFilters(prev => ({ ...prev, category: value }))}>
+              <SelectTrigger className="mt-2">
+                <SelectValue placeholder="All Categories" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Categories</SelectItem>
+                {categories.map((category) => (
+                  <SelectItem key={category} value={category}>
+                    {category}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Condition Filter */}
+          <div>
+            <Label className="text-sm font-medium">Condition</Label>
+            <Select value={filters.condition} onValueChange={(value) => setFilters(prev => ({ ...prev, condition: value }))}>
+              <SelectTrigger className="mt-2">
+                <SelectValue placeholder="All Conditions" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Conditions</SelectItem>
+                {conditions.map((condition) => (
+                  <SelectItem key={condition} value={condition}>
+                    {condition}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Price Range */}
+          <div>
+            <Label className="text-sm font-medium">Price Range</Label>
+            <div className="mt-2 space-y-2">
+              <Slider
+                value={filters.priceRange}
+                onValueChange={(value) => setFilters(prev => ({ ...prev, priceRange: value }))}
+                max={1000000}
+                step={1000}
+                className="w-full"
+              />
+              <div className="flex justify-between text-sm text-gray-500">
+                <span>₵{filters.priceRange[0].toLocaleString()}</span>
+                <span>₵{filters.priceRange[1].toLocaleString()}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Location Filter */}
+          <div>
+            <Label className="text-sm font-medium">Location</Label>
+            <Input
+              placeholder="Enter location..."
+              value={filters.location}
+              onChange={(e) => setFilters(prev => ({ ...prev, location: e.target.value }))}
+              className="mt-2"
+            />
+          </div>
+
+          {/* Negotiable Filter */}
+          <div>
+            <Label className="text-sm font-medium">Negotiable</Label>
+            <Select value={filters.negotiable === null ? "all" : filters.negotiable ? "yes" : "no"} onValueChange={(value) => {
+              const negotiableValue = value === "all" ? null : value === "yes";
+              setFilters(prev => ({ ...prev, negotiable: negotiableValue }));
+            }}>
+              <SelectTrigger className="mt-2">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Items</SelectItem>
+                <SelectItem value="yes">Negotiable Only</SelectItem>
+                <SelectItem value="no">Fixed Price Only</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Date Range */}
+          <div>
+            <Label className="text-sm font-medium">Date Posted</Label>
+            <Select value={filters.dateRange} onValueChange={(value) => setFilters(prev => ({ ...prev, dateRange: value }))}>
+              <SelectTrigger className="mt-2">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {dateRanges.map((range) => (
+                  <SelectItem key={range.value} value={range.value}>
+                    {range.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+});
+
+FilterDialog.displayName = 'FilterDialog';
 
 const Search = () => {
   const [searchResults, setSearchResults] = useState<ProductSubmission[]>([]);
@@ -35,8 +231,8 @@ const Search = () => {
 
   // Filter states
   const [filters, setFilters] = useState({
-    category: "",
-    condition: "",
+    category: "all",
+    condition: "all",
     priceRange: [0, 1000000],
     location: "",
     negotiable: null as boolean | null,
@@ -130,14 +326,14 @@ const Search = () => {
     let filtered = [...searchResults];
 
     // Category filter
-    if (filters.category) {
+    if (filters.category && filters.category !== "all") {
       filtered = filtered.filter(product => 
         product.category.toLowerCase() === filters.category.toLowerCase()
       );
     }
 
     // Condition filter
-    if (filters.condition) {
+    if (filters.condition && filters.condition !== "all") {
       filtered = filtered.filter(product => 
         product.condition.toLowerCase() === filters.condition.toLowerCase()
       );
@@ -264,167 +460,6 @@ const Search = () => {
     return "";
   };
 
-  const FilterDialog = () => (
-    <Dialog open={showFilters} onOpenChange={setShowFilters}>
-      <DialogTrigger asChild>
-        <Button variant="outline" size="sm" className="flex items-center space-x-2">
-          <Filter className="h-4 w-4" />
-          <span>Filter</span>
-          {activeFilters.length > 0 && (
-            <Badge variant="secondary" className="ml-1">
-              {activeFilters.length}
-            </Badge>
-          )}
-        </Button>
-      </DialogTrigger>
-      <DialogContent className="max-w-md max-h-[80vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center justify-between">
-            <span>Filters & Sort</span>
-            {activeFilters.length > 0 && (
-              <Button variant="ghost" size="sm" onClick={clearFilters}>
-                <X className="h-4 w-4" />
-                Clear All
-              </Button>
-            )}
-          </DialogTitle>
-        </DialogHeader>
-        
-        <div className="space-y-6">
-          {/* Sort Options */}
-          <div>
-            <Label className="text-sm font-medium">Sort By</Label>
-            <Select value={filters.sortBy} onValueChange={(value) => setFilters(prev => ({ ...prev, sortBy: value }))}>
-              <SelectTrigger className="mt-2">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {sortOptions.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Category Filter */}
-          <div>
-            <Label className="text-sm font-medium">Category</Label>
-            <Select value={filters.category} onValueChange={(value) => setFilters(prev => ({ ...prev, category: value }))}>
-              <SelectTrigger className="mt-2">
-                <SelectValue placeholder="All Categories" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="">All Categories</SelectItem>
-                {categories.map((category) => (
-                  <SelectItem key={category} value={category}>
-                    {category}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Condition Filter */}
-          <div>
-            <Label className="text-sm font-medium">Condition</Label>
-            <Select value={filters.condition} onValueChange={(value) => setFilters(prev => ({ ...prev, condition: value }))}>
-              <SelectTrigger className="mt-2">
-                <SelectValue placeholder="All Conditions" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="">All Conditions</SelectItem>
-                {conditions.map((condition) => (
-                  <SelectItem key={condition} value={condition}>
-                    {condition}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Price Range */}
-          <div>
-            <Label className="text-sm font-medium">Price Range</Label>
-            <div className="mt-2 space-y-2">
-              <Slider
-                value={filters.priceRange}
-                onValueChange={(value) => setFilters(prev => ({ ...prev, priceRange: value }))}
-                max={1000000}
-                step={1000}
-                className="w-full"
-              />
-              <div className="flex justify-between text-sm text-gray-500">
-                <span>₵{filters.priceRange[0].toLocaleString()}</span>
-                <span>₵{filters.priceRange[1].toLocaleString()}</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Location Filter */}
-          <div>
-            <Label className="text-sm font-medium">Location</Label>
-            <Input
-              placeholder="Enter location..."
-              value={filters.location}
-              onChange={(e) => setFilters(prev => ({ ...prev, location: e.target.value }))}
-              className="mt-2"
-            />
-          </div>
-
-          {/* Negotiable Filter */}
-          <div>
-            <Label className="text-sm font-medium">Negotiable</Label>
-            <div className="mt-2 space-y-2">
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="negotiable-all"
-                  checked={filters.negotiable === null}
-                  onCheckedChange={() => setFilters(prev => ({ ...prev, negotiable: null }))}
-                />
-                <Label htmlFor="negotiable-all">All</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="negotiable-yes"
-                  checked={filters.negotiable === true}
-                  onCheckedChange={() => setFilters(prev => ({ ...prev, negotiable: true }))}
-                />
-                <Label htmlFor="negotiable-yes">Negotiable</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="negotiable-no"
-                  checked={filters.negotiable === false}
-                  onCheckedChange={() => setFilters(prev => ({ ...prev, negotiable: false }))}
-                />
-                <Label htmlFor="negotiable-no">Fixed Price</Label>
-              </div>
-            </div>
-          </div>
-
-          {/* Date Range */}
-          <div>
-            <Label className="text-sm font-medium">Date Posted</Label>
-            <Select value={filters.dateRange} onValueChange={(value) => setFilters(prev => ({ ...prev, dateRange: value }))}>
-              <SelectTrigger className="mt-2">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {dateRanges.map((range) => (
-                  <SelectItem key={range.value} value={range.value}>
-                    {range.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-      </DialogContent>
-    </Dialog>
-  );
-
   return (
     <Layout>
       <div className="md:hidden">
@@ -435,7 +470,18 @@ const Search = () => {
         {/* Mobile Filters */}
         <div className="md:hidden px-4 mb-4">
           <div className="flex items-center space-x-3">
-            <FilterDialog />
+            <FilterDialog 
+              showFilters={showFilters} 
+              setShowFilters={setShowFilters} 
+              activeFilters={activeFilters} 
+              filters={filters} 
+              setFilters={setFilters} 
+              clearFilters={clearFilters}
+              sortOptions={sortOptions}
+              categories={categories}
+              conditions={conditions}
+              dateRanges={dateRanges}
+            />
             <Button variant="outline" size="sm" className="flex items-center space-x-2">
               <SlidersHorizontal className="h-4 w-4" />
               <span>Sort</span>
@@ -499,7 +545,7 @@ const Search = () => {
                         <SelectValue placeholder="All" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">All Categories</SelectItem>
+                        <SelectItem value="all">All Categories</SelectItem>
                         {categories.map((category) => (
                           <SelectItem key={category} value={category}>
                             {category}
@@ -517,7 +563,7 @@ const Search = () => {
                         <SelectValue placeholder="All" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">All Conditions</SelectItem>
+                        <SelectItem value="all">All Conditions</SelectItem>
                         {conditions.map((condition) => (
                           <SelectItem key={condition} value={condition}>
                             {condition}

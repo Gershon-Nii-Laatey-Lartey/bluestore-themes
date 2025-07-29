@@ -70,7 +70,12 @@ export const SupportChat = () => {
     
     return () => {
       if (subscriptionRef.current) {
-        supabase.removeChannel(subscriptionRef.current);
+        console.log('Cleaning up admin subscription on unmount');
+        if (subscriptionRef.current.type === 'polling') {
+          clearInterval(subscriptionRef.current.interval);
+        } else {
+          supabase.removeChannel(subscriptionRef.current);
+        }
       }
     };
   }, [selectedSession]);
@@ -154,28 +159,66 @@ export const SupportChat = () => {
   };
 
   const subscribeToMessages = (sessionId: string) => {
+    console.log('Setting up admin subscription for session:', sessionId);
+    
+    // Clean up existing subscription/interval
     if (subscriptionRef.current) {
-      supabase.removeChannel(subscriptionRef.current);
+      console.log('Removing existing admin subscription');
+      if (subscriptionRef.current.type === 'polling') {
+        clearInterval(subscriptionRef.current.interval);
+      } else {
+        supabase.removeChannel(subscriptionRef.current);
+      }
     }
 
-    const channel = supabase
-      .channel(`support-chat-${sessionId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'support_chat_messages',
-          filter: `session_id=eq.${sessionId}`
-        },
-        (payload) => {
-          const newMessage = payload.new as SupportMessage;
-          setMessages(prev => [...prev, newMessage]);
-        }
-      )
-      .subscribe();
+    // Since real-time might not work due to table setup, use efficient polling
+    console.log('Using efficient polling for admin support chat');
+    startPolling(sessionId);
+  };
 
-    subscriptionRef.current = channel;
+  const startPolling = (sessionId: string) => {
+    console.log('Starting efficient polling for admin session:', sessionId);
+    
+    // Store the last message timestamp to only fetch newer messages
+    let lastMessageTime = new Date().toISOString();
+    
+    const pollInterval = setInterval(async () => {
+      try {
+        const { data: newMessages, error } = await supabase
+          .from('support_chat_messages')
+          .select('*')
+          .eq('session_id', sessionId)
+          .gt('sent_at', lastMessageTime)
+          .order('sent_at', { ascending: true });
+
+        if (error) throw error;
+
+        if (newMessages && newMessages.length > 0) {
+          setMessages(prev => {
+            const existingIds = new Set(prev.map(msg => msg.id));
+            const uniqueNewMessages = newMessages.filter(msg => !existingIds.has(msg.id));
+            if (uniqueNewMessages.length > 0) {
+              console.log('Admin polling found new support messages:', uniqueNewMessages.length);
+              // Update the last message time to the newest message
+              lastMessageTime = uniqueNewMessages[uniqueNewMessages.length - 1].sent_at;
+              return [...prev, ...uniqueNewMessages];
+            }
+            return prev;
+          });
+        }
+      } catch (error) {
+        console.error('Admin support chat polling error:', error);
+      }
+    }, 1000); // Poll every 1 second for more responsive experience
+
+    // Store the interval ID for cleanup
+    subscriptionRef.current = { type: 'polling', interval: pollInterval };
+    
+    return () => {
+      if (subscriptionRef.current && subscriptionRef.current.type === 'polling') {
+        clearInterval(subscriptionRef.current.interval);
+      }
+    };
   };
 
   const sendMessage = async () => {
@@ -184,16 +227,21 @@ export const SupportChat = () => {
     try {
       setSending(true);
       
-      const { error } = await supabase
+      const { data: newMessage, error } = await supabase
         .from('support_chat_messages')
         .insert({
           session_id: selectedSession.id,
           sender_id: user?.id,
           sender_type: 'admin',
           message_text: messageText.trim()
-        });
+        })
+        .select()
+        .single();
 
       if (error) throw error;
+
+      // Add the new message to local state immediately
+      setMessages(prev => [...prev, newMessage]);
 
       setMessageText("");
     } catch (error) {

@@ -4,6 +4,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Link } from "react-router-dom";
 import { FavoriteButton } from "@/components/FavoriteButton";
 import { OptimizedImage } from "@/components/ui/optimized-image";
+import { memo } from "react";
 
 interface Product {
   id: string;
@@ -26,9 +27,7 @@ interface FeaturedProductsProps {
   loading?: boolean;
 }
 
-export const FeaturedProducts = ({ products, loading = false }: FeaturedProductsProps) => {
-  console.log('FeaturedProducts: Rendering with products:', products.length);
-
+export const FeaturedProducts = memo(({ products, loading = false }: FeaturedProductsProps) => {
   const getDisplayPrice = (product: Product) => {
     // Priority 1: If the product has been edited and has a previous price (clearance item)
     if (product.edited && product.previous_price) {
@@ -103,7 +102,6 @@ export const FeaturedProducts = ({ products, loading = false }: FeaturedProducts
           </div>
         ) : (
           products.map(product => {
-            console.log('FeaturedProducts: Rendering product:', product.title, product.id);
             const priceInfo = getDisplayPrice(product);
             
             return (
@@ -157,4 +155,6 @@ export const FeaturedProducts = ({ products, loading = false }: FeaturedProducts
       </div>
     </section>
   );
-};
+});
+
+FeaturedProducts.displayName = 'FeaturedProducts';

@@ -117,7 +117,7 @@ const PublishAd = () => {
         if (!user) return;
 
         const { data: subscriptions } = await supabase
-          .from('user_subscriptions')
+          .from('user_plan_subscriptions')
           .select('*')
           .eq('user_id', user.id)
           .eq('status', 'active')

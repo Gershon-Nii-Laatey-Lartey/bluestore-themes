@@ -88,7 +88,7 @@ const CreateVendorProfile = () => {
         description: "Your vendor profile has been created successfully!"
       });
       
-      navigate('/my-vendor-profile');
+              navigate(`/vendor/${user?.id}`);
     } catch (error) {
       toast({
         title: "Error",

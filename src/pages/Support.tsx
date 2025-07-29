@@ -46,8 +46,7 @@ const Support = () => {
   const [messages, setMessages] = useState<SupportMessage[]>([]);
   const [messageText, setMessageText] = useState("");
   const [sending, setSending] = useState(false);
-  const [visitorName, setVisitorName] = useState("");
-  const [visitorEmail, setVisitorEmail] = useState("");
+
   const [deletingSession, setDeletingSession] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const subscriptionRef = useRef<any>(null);
@@ -63,6 +62,30 @@ const Support = () => {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  // Cleanup subscription on unmount
+  useEffect(() => {
+    return () => {
+      if (subscriptionRef.current) {
+        console.log('Cleaning up subscription on unmount');
+        if (subscriptionRef.current.type === 'polling') {
+          clearInterval(subscriptionRef.current.interval);
+        } else {
+          supabase.removeChannel(subscriptionRef.current);
+        }
+      }
+    };
+  }, []);
+
+  // Set up subscription when currentSession changes
+  useEffect(() => {
+    if (currentSession && showChat) {
+      console.log('Setting up subscription for current session:', currentSession.id);
+      subscribeToMessages(currentSession.id);
+    }
+  }, [currentSession, showChat]);
+
+
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -112,46 +135,7 @@ const Support = () => {
     }
   };
 
-  const startNewChat = async () => {
-    try {
-      setSending(true);
-      
-      const { data, error } = await supabase
-        .from('support_chat_sessions')
-        .insert({
-          user_id: user?.id,
-          visitor_name: visitorName || user?.email?.split('@')[0] || 'User',
-          visitor_email: visitorEmail || user?.email,
-          status: 'pending',
-          priority: 1
-        })
-        .select()
-        .single();
 
-      if (error) throw error;
-
-      setCurrentSession(data);
-      setMessages([]);
-      setShowChat(true);
-      
-      // Subscribe to messages
-      subscribeToMessages(data.id);
-      
-      toast({
-        title: "Chat Started",
-        description: "Your support chat has been created successfully.",
-      });
-    } catch (error) {
-      console.error('Error starting chat:', error);
-      toast({
-        title: "Error",
-        description: "Failed to start chat. Please try again.",
-        variant: "destructive"
-      });
-    } finally {
-      setSending(false);
-    }
-  };
 
   const loadMessages = async (sessionId: string) => {
     try {
@@ -169,46 +153,156 @@ const Support = () => {
   };
 
   const subscribeToMessages = (sessionId: string) => {
+    console.log('Setting up subscription for session:', sessionId);
+    
+    // Clean up existing subscription/interval
     if (subscriptionRef.current) {
-      supabase.removeChannel(subscriptionRef.current);
+      console.log('Removing existing subscription');
+      if (subscriptionRef.current.type === 'polling') {
+        clearInterval(subscriptionRef.current.interval);
+      } else {
+        supabase.removeChannel(subscriptionRef.current);
+      }
     }
 
-    const channel = supabase
-      .channel(`support-chat-${sessionId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'support_chat_messages',
-          filter: `session_id=eq.${sessionId}`
-        },
-        (payload) => {
-          const newMessage = payload.new as SupportMessage;
-          setMessages(prev => [...prev, newMessage]);
-        }
-      )
-      .subscribe();
+    // Since real-time might not work due to table setup, use efficient polling
+    console.log('Using efficient polling for support chat');
+    startPolling(sessionId);
+  };
 
-    subscriptionRef.current = channel;
+  const startPolling = (sessionId: string) => {
+    console.log('Starting efficient polling for session:', sessionId);
+    
+    // Store the last message timestamp to only fetch newer messages
+    let lastMessageTime = new Date().toISOString();
+    
+    const pollInterval = setInterval(async () => {
+      try {
+        const { data: newMessages, error } = await supabase
+          .from('support_chat_messages')
+          .select('*')
+          .eq('session_id', sessionId)
+          .gt('sent_at', lastMessageTime)
+          .order('sent_at', { ascending: true });
+
+        if (error) throw error;
+
+        if (newMessages && newMessages.length > 0) {
+          setMessages(prev => {
+            const existingIds = new Set(prev.map(msg => msg.id));
+            const uniqueNewMessages = newMessages.filter(msg => !existingIds.has(msg.id));
+            if (uniqueNewMessages.length > 0) {
+              console.log('Polling found new support messages:', uniqueNewMessages.length);
+              // Update the last message time to the newest message
+              lastMessageTime = uniqueNewMessages[uniqueNewMessages.length - 1].sent_at;
+              return [...prev, ...uniqueNewMessages];
+            }
+            return prev;
+          });
+        }
+      } catch (error) {
+        console.error('Support chat polling error:', error);
+      }
+    }, 1000); // Poll every 1 second for more responsive experience
+
+    // Store the interval ID for cleanup
+    subscriptionRef.current = { type: 'polling', interval: pollInterval };
+    
+    return () => {
+      if (subscriptionRef.current && subscriptionRef.current.type === 'polling') {
+        clearInterval(subscriptionRef.current.interval);
+      }
+    };
   };
 
   const sendMessage = async () => {
-    if (!messageText.trim() || !currentSession) return;
+    if (!messageText.trim()) return;
+    
+    if (!user) {
+      console.error('No user found');
+      toast({
+        title: "Error",
+        description: "You must be logged in to send messages.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+
+    
+
+    
+    // If no current session, create one first
+    let sessionToUse = currentSession;
+    
+    if (!currentSession) {
+      try {
+        setSending(true);
+        
+        const { data, error } = await supabase
+          .from('support_chat_sessions')
+          .insert({
+            user_id: user?.id || null,
+            visitor_name: user?.email?.split('@')[0] || 'User',
+            visitor_email: user?.email,
+            status: 'pending',
+            priority: 1
+          })
+          .select()
+          .single();
+
+        if (error) throw error;
+
+        // Use the newly created session
+        sessionToUse = data;
+        setCurrentSession(data);
+        setMessages([]);
+        
+
+        
+        // Show success message for session creation
+        toast({
+          title: "Chat Started",
+          description: "Your support chat has been created successfully.",
+        });
+        
+        // Continue with message sending (don't set sending to false)
+      } catch (error) {
+        console.error('Error creating session:', error);
+        toast({
+          title: "Error",
+          description: "Failed to create chat session. Please try again.",
+          variant: "destructive"
+        });
+        setSending(false);
+        return;
+      }
+    }
 
     try {
-      setSending(true);
+      // Set sending to true for message sending (only if we haven't already set it for session creation)
+      if (currentSession) {
+        setSending(true);
+      }
       
-      const { error } = await supabase
+      const { data: newMessage, error } = await supabase
         .from('support_chat_messages')
         .insert({
-          session_id: currentSession.id,
-          sender_id: user?.id,
-          sender_type: 'user',
+          session_id: sessionToUse.id,
+          sender_id: user?.id || null,
+          sender_type: user ? 'user' : 'visitor',
           message_text: messageText.trim()
-        });
+        })
+        .select()
+        .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Database error:', error);
+        throw error;
+      }
+
+      // Add the new message to local state immediately
+      setMessages(prev => [...prev, newMessage]);
 
       // Notify admins about the support chat message
       if (user) {
@@ -287,7 +381,6 @@ const Support = () => {
   const continueChat = async (session: UserSupportSession) => {
     setCurrentSession(session);
     await loadMessages(session.id);
-    subscribeToMessages(session.id);
     setShowChat(true);
   };
 
@@ -511,7 +604,7 @@ const Support = () => {
                 <div className="flex items-center justify-between">
                   <CardTitle className="flex items-center text-lg">
                     <MessageCircle className="h-5 w-5 mr-2 text-blue-600" />
-                    Support Chat
+                    {currentSession ? 'Support Chat' : 'Start Support Chat'}
                     {currentSession?.case_number && (
                       <Badge variant="outline" className="ml-2">
                         {currentSession.case_number}
@@ -540,7 +633,12 @@ const Support = () => {
             <Card>
               <CardContent className="p-0">
                 <div className="h-96 overflow-y-auto p-4 space-y-3">
-                  {messages.length === 0 ? (
+                  {!currentSession ? (
+                    <div className="text-center text-gray-500 py-8">
+                      <MessageCircle className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                      <p className="text-sm">Type your message below to start the conversation!</p>
+                    </div>
+                  ) : messages.length === 0 ? (
                     <div className="text-center text-gray-500 py-8">
                       <MessageCircle className="h-12 w-12 mx-auto mb-4 opacity-50" />
                       <p className="text-sm">No messages yet. Start the conversation!</p>
@@ -599,14 +697,18 @@ const Support = () => {
                     value={messageText}
                     onChange={(e) => setMessageText(e.target.value)}
                     onKeyPress={handleKeyPress}
-                    placeholder="Type your message..."
+                    placeholder={currentSession ? "Type your message..." : "Type your first message to start the chat..."}
                     className="flex-1"
                   />
                   <Button 
                     onClick={sendMessage} 
                     disabled={!messageText.trim() || sending}
                   >
-                    <Send className="h-4 w-4" />
+                    {sending ? (
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    ) : (
+                      <Send className="h-4 w-4" />
+                    )}
                   </Button>
                 </div>
               </CardContent>

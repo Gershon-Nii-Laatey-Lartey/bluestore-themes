@@ -1,5 +1,5 @@
 
-import { Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import { ProductSubmission } from "@/types/product";
 
@@ -9,14 +9,19 @@ interface ProductDetailHeaderProps {
 }
 
 export const ProductDetailHeader = ({ product, isOwner }: ProductDetailHeaderProps) => {
+  const navigate = useNavigate();
   return (
     <>
       {/* Back button */}
       <div className="mb-4">
-        <Link to="/my-ads" className="flex items-center space-x-2 text-blue-600 hover:text-blue-700 transition-colors w-fit">
+        <button
+          type="button"
+          onClick={() => navigate(-1)}
+          className="flex items-center space-x-2 text-blue-600 hover:text-blue-700 transition-colors w-fit"
+        >
           <ArrowLeft className="h-4 w-4" />
-          <span>Back to My Ads</span>
-        </Link>
+          <span>Back</span>
+        </button>
       </div>
 
       {/* Status badge for pending/rejected products for owners */}

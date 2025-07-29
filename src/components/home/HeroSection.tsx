@@ -55,6 +55,7 @@ export const HeroSection = () => {
     <section className="w-full mb-6">
       <div className="bg-gradient-to-r from-blue-500 to-blue-600 rounded-2xl md:rounded-3xl p-6 md:p-8 text-white relative overflow-hidden max-w-full">
         <div className="relative z-10">
+
           <h2 className="text-2xl md:text-4xl font-bold mb-2">
             Clearance
             <br />

@@ -31,7 +31,7 @@ const Notifications = () => {
 
   const ITEMS_PER_PAGE = 15;
 
-  const loadNotifications = async (isInitial = false) => {
+  const loadNotifications = useCallback(async (isInitial = false) => {
     if (!user) return;
 
     try {
@@ -90,7 +90,7 @@ const Notifications = () => {
       setLoading(false);
       setLoadingMore(false);
     }
-  };
+  }, [user, toast]);
 
   // Intersection Observer for infinite scroll
   const lastElementRef = useCallback((node: HTMLDivElement) => {
@@ -102,7 +102,7 @@ const Notifications = () => {
       }
     });
     if (node) observer.current.observe(node);
-  }, [loading, hasMore, loadingMore]);
+  }, [loading, hasMore, loadingMore, loadNotifications]);
 
   useEffect(() => {
     if (user) {

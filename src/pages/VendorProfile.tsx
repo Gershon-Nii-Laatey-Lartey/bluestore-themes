@@ -1,18 +1,27 @@
 
 import React from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { Layout } from "@/components/Layout";
 import { MobileHeader } from "@/components/MobileHeader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { MapPin, Phone, Mail, Package, Shield } from "lucide-react";
+import { MapPin, Phone, Mail, Package, Shield, Edit, MessageCircle, Calendar } from "lucide-react";
 import { SEOHead } from "@/components/SEOHead";
+import { useAuth } from "@/hooks/useAuth";
+import { dataService, VendorProfile as VendorProfileType } from "@/services/dataService";
+import { productService } from "@/services/productService";
+import { ProductSubmission } from "@/types/product";
+import { paymentService } from "@/services/paymentService";
 
 const VendorProfile = () => {
   const { vendorId } = useParams<{ vendorId: string }>();
+  const navigate = useNavigate();
+  const { user } = useAuth();
 
   const { data: vendor, isLoading, error } = useQuery({
     queryKey: ['vendor-profile', vendorId],
@@ -21,15 +30,61 @@ const VendorProfile = () => {
       
       console.log('Fetching vendor profile for ID:', vendorId);
       
-      // First get the vendor profile
-      const { data: vendorData, error: vendorError } = await supabase
+      // Debug: Let's see what vendor profiles exist in the database
+      const { data: allVendors, error: debugError } = await supabase
         .from('vendor_profiles')
-        .select('*')
-        .eq('id', vendorId)
-        .single();
+        .select('id, user_id, business_name')
+        .limit(5);
+      
+      if (!debugError) {
+        console.log('Available vendor profiles:', allVendors);
+      }
+      
+      // Try multiple approaches to find the vendor profile
+      let vendorData = null;
+      let vendorError = null;
 
-      if (vendorError) {
-        console.error('Error fetching vendor profile:', vendorError);
+      // First try: Look for vendor profile by ID (vendor profile UUID)
+      try {
+        const { data, error } = await supabase
+          .from('vendor_profiles')
+          .select('*')
+          .eq('id', vendorId)
+          .single();
+        
+        if (data && !error) {
+          vendorData = data;
+          console.log('Found vendor profile by ID:', vendorData);
+        }
+      } catch (error) {
+        console.log('Vendor profile not found by ID, trying user_id...');
+      }
+
+      // Second try: Look for vendor profile by user_id (if vendorId is actually a user ID)
+      if (!vendorData) {
+        try {
+          const { data, error } = await supabase
+            .from('vendor_profiles')
+            .select('*')
+            .eq('user_id', vendorId)
+            .single();
+          
+          if (data && !error) {
+            vendorData = data;
+            console.log('Found vendor profile by user_id:', vendorData);
+          }
+        } catch (error) {
+          console.log('Vendor profile not found by user_id either');
+        }
+      }
+
+      // If still no vendor data found, throw an error
+      if (!vendorData) {
+        vendorError = {
+          code: 'PGRST116',
+          message: 'Vendor profile not found by ID or user_id',
+          details: 'The result contains 0 rows'
+        };
         throw vendorError;
       }
 
@@ -76,6 +131,58 @@ const VendorProfile = () => {
     },
     enabled: !!vendor?.user_id
   });
+
+  // Check if this is the current user's own profile
+  const isOwnProfile = vendor?.user_id === user?.id;
+
+  // Get user's active package if it's their own profile
+  const { data: userActivePackage } = useQuery({
+    queryKey: ['user-active-package', user?.id],
+    queryFn: async () => {
+      if (!user?.id || !isOwnProfile) return null;
+      
+      try {
+        return await paymentService.getUserActivePackage(user.id);
+      } catch (error) {
+        console.error('Error loading active package:', error);
+        return null;
+      }
+    },
+    enabled: !!user?.id && isOwnProfile
+  });
+
+  // Helper functions
+  const getVerificationBadge = () => {
+    if (!vendor) return null;
+    
+    if (vendor.verification_status === 'verified') {
+      return <Badge className="bg-green-100 text-green-800">Verified</Badge>;
+    } else if (vendor.verification_status === 'pending') {
+      return <Badge className="bg-yellow-100 text-yellow-800">Pending</Badge>;
+    } else {
+      return <Badge className="bg-gray-100 text-gray-800">Unverified</Badge>;
+    }
+  };
+
+  const getProfileImageUrl = () => {
+    if (vendor?.profile_image) {
+      return vendor.profile_image;
+    }
+    return null;
+  };
+
+  const getActivePackageInfo = () => {
+    if (!userActivePackage) return null;
+    
+    return (
+      <div className="flex items-center space-x-2">
+        <Package className="h-4 w-4 text-blue-600" />
+        <span className="text-sm font-medium text-blue-600">
+          {userActivePackage.package_name} Package
+        </span>
+      </div>
+    );
+  };
 
   // SEO data for vendor profile
   const vendorName = vendor?.business_name || vendor?.profiles?.full_name || 'Vendor';
@@ -173,7 +280,11 @@ const VendorProfile = () => {
     return <VendorSkeleton />;
   }
 
-  if (error) {
+  if (error || !vendor) {
+    // For error cases, we can't determine if it's the user's own profile without vendor data
+    // So we'll show the create profile option for any authenticated user
+    const isOwnProfile = !!user?.id;
+    
     return (
       <Layout>
         <div className="md:hidden">
@@ -183,22 +294,13 @@ const VendorProfile = () => {
           <div className="text-center">
             <h1 className="text-2xl font-bold text-gray-900 mb-4">Vendor Not Found</h1>
             <p className="text-gray-600">The vendor you're looking for doesn't exist or has been removed.</p>
-          </div>
-        </div>
-      </Layout>
-    );
-  }
-
-  if (!vendor) {
-    return (
-      <Layout>
-        <div className="md:hidden">
-          <MobileHeader />
-        </div>
-        <div className="container mx-auto px-4 py-8">
-          <div className="text-center">
-            <h1 className="text-2xl font-bold text-gray-900 mb-4">Vendor Not Found</h1>
-            <p className="text-gray-600">The vendor you're looking for doesn't exist or has been removed.</p>
+            {isOwnProfile && (
+              <div className="mt-4">
+                <Button onClick={() => navigate('/create-vendor-profile')} className="bg-blue-600 hover:bg-blue-700">
+                  Create Vendor Profile
+                </Button>
+              </div>
+            )}
           </div>
         </div>
       </Layout>
@@ -222,8 +324,45 @@ const VendorProfile = () => {
           <div className="animate-fade-in space-y-6">
             {/* Header */}
             <div className="text-center">
-              <h1 className="text-3xl font-bold text-gray-900 mb-2">{vendor.business_name || vendor.profiles?.full_name}</h1>
-              <p className="text-gray-600 mb-4">{vendor.profiles?.full_name && vendor.business_name ? `${vendor.profiles.full_name} • ` : ''}BlueStore Vendor</p>
+              <div className="flex items-center justify-center mb-4">
+                <Avatar className="h-20 w-20 mr-4">
+                  <AvatarImage src={getProfileImageUrl() || undefined} />
+                  <AvatarFallback className="bg-blue-100 text-blue-600 text-xl">
+                    {vendor.business_name?.charAt(0) || vendor.profiles?.full_name?.charAt(0) || 'V'}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="text-left">
+                  <h1 className="text-3xl font-bold text-gray-900 mb-2">{vendor.business_name || vendor.profiles?.full_name}</h1>
+                  <p className="text-gray-600 mb-2">{vendor.profiles?.full_name && vendor.business_name ? `${vendor.profiles.full_name} • ` : ''}BlueStore Vendor</p>
+                  <div className="flex items-center space-x-2">
+                    {getVerificationBadge()}
+                    {isOwnProfile && getActivePackageInfo()}
+                  </div>
+                </div>
+              </div>
+              
+              {/* Action buttons for own profile */}
+              {isOwnProfile && (
+                <div className="flex items-center justify-center space-x-4 mb-6">
+                  <Button 
+                    onClick={() => navigate('/edit-vendor-profile')} 
+                    variant="outline"
+                    className="flex items-center space-x-2"
+                  >
+                    <Edit className="h-4 w-4" />
+                    <span>Edit Profile</span>
+                  </Button>
+                  <Button 
+                    onClick={() => navigate('/my-ads')} 
+                    variant="outline"
+                    className="flex items-center space-x-2"
+                  >
+                    <Package className="h-4 w-4" />
+                    <span>My Ads</span>
+                  </Button>
+                </div>
+              )}
+              
               <div className="flex items-center justify-center space-x-4">
                 <Badge variant="outline" className="flex items-center space-x-1">
                   <Package className="h-3 w-3" />
@@ -267,7 +406,7 @@ const VendorProfile = () => {
                       <Phone className="h-5 w-5 text-gray-400" />
                       <div>
                         <p className="font-medium">Contact</p>
-                        <p className="text-gray-600">{vendor.contact_phone || 'Not specified'}</p>
+                        <p className="text-gray-600">{vendor.phone || 'Not specified'}</p>
                       </div>
                     </div>
                   </div>
@@ -276,7 +415,7 @@ const VendorProfile = () => {
                       <Mail className="h-5 w-5 text-gray-400" />
                       <div>
                         <p className="font-medium">Email</p>
-                        <p className="text-gray-600">{vendor.profiles?.email || vendor.contact_email || 'Not specified'}</p>
+                        <p className="text-gray-600">{vendor.profiles?.email || vendor.email || 'Not specified'}</p>
                       </div>
                     </div>
                     <div className="flex items-center space-x-3">

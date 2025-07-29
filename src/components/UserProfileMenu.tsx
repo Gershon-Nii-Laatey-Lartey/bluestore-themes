@@ -17,13 +17,7 @@ import { dataService } from "@/services/dataService";
 import { paymentService } from "@/services/paymentService";
 import { packageFeatureService } from "@/services/packageFeatureService";
 
-const menuItems = [
-  { name: "Profile", href: "/profile", icon: User },
-  { name: "My Chats", href: "/chat", icon: MessageCircle },
-  { name: "My Ads", href: "/my-ads", icon: FileText },
-  { name: "My Vendor Profile", href: "/my-vendor-profile", icon: Store },
-  { name: "Active Packages", href: "/active-packages", icon: Package },
-];
+
 
 export const UserProfileMenu = () => {
   const [open, setOpen] = useState(false);
@@ -35,6 +29,14 @@ export const UserProfileMenu = () => {
   const { state } = useSidebar();
   const isCollapsed = state === "collapsed";
   const { user, profile, signOut } = useAuth();
+
+  const menuItems = [
+    { name: "Profile", href: "/profile", icon: User },
+    { name: "My Chats", href: "/chat", icon: MessageCircle },
+    { name: "My Ads", href: "/my-ads", icon: FileText },
+    { name: "My Vendor Profile", href: `/vendor/${user?.id}`, icon: Store },
+    { name: "Active Packages", href: "/active-packages", icon: Package },
+  ];
 
   useEffect(() => {
     const checkUserStatus = async () => {
@@ -153,7 +155,7 @@ export const UserProfileMenu = () => {
           </div>
         </div>
         
-        <div className="py-2">
+        <div className="py-2 space-y-2">
           {menuItems.map((item) => (
             <Link
               key={item.name}
@@ -165,7 +167,6 @@ export const UserProfileMenu = () => {
               <span>{item.name}</span>
             </Link>
           ))}
-          
           {/* Admin Link - Only visible to admins */}
           {isAdmin && (
             <Link
@@ -177,7 +178,6 @@ export const UserProfileMenu = () => {
               <span>Admin Dashboard</span>
             </Link>
           )}
-          
           {/* Storefront Manager - Only visible to users with storefront packages */}
           {hasStorefront && (
             <Link
@@ -192,7 +192,6 @@ export const UserProfileMenu = () => {
               </div>
             </Link>
           )}
-          
           {/* Analytics - Only visible to users with analytics packages */}
           {hasAnalytics && (
             <Link

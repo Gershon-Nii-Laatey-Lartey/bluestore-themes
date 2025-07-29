@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Upload, X, Star, Image as ImageIcon } from "lucide-react";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
-import { imageOptimizationService, OptimizedImage } from "@/services/imageOptimizationService";
+import { imageOptimizationService } from "@/services/imageOptimizationService";
 import { LazyOptimizedImage } from "@/components/ui/lazy-optimized-image";
 
 interface ImageUploadFormProps {
@@ -26,7 +26,6 @@ export const ImageUploadForm = ({
   onSetMainImage
 }: ImageUploadFormProps) => {
   const [isOptimizing, setIsOptimizing] = useState(false);
-  const [optimizationStats, setOptimizationStats] = useState<OptimizedImage[]>([]);
   const [blurPlaceholders, setBlurPlaceholders] = useState<{ [key: number]: string }>({});
   const { toast } = useToast();
 
@@ -78,18 +77,6 @@ export const ImageUploadForm = ({
       const optimizedImages = await imageOptimizationService.optimizeImages(supportedFiles);
       
       if (optimizedImages.length > 0) {
-        // Show optimization results
-        const totalOriginalSize = optimizedImages.reduce((sum, img) => sum + img.originalSize, 0);
-        const totalOptimizedSize = optimizedImages.reduce((sum, img) => sum + img.optimizedSize, 0);
-        const overallSavings = Math.round((1 - totalOptimizedSize / totalOriginalSize) * 100);
-        
-        toast({
-          title: "Images Optimized!",
-          description: `${optimizedImages.length} images optimized. ${overallSavings}% size reduction achieved.`,
-        });
-
-        setOptimizationStats(prev => [...prev, ...optimizedImages]);
-        
         // Pass optimized files directly to the parent component
         const optimizedFiles = optimizedImages.map(img => img.file);
         onImageUpload(optimizedFiles);
@@ -108,23 +95,7 @@ export const ImageUploadForm = ({
     }
   };
 
-  const formatFileSize = (bytes: number): string => {
-    if (bytes < 1024) return `${bytes} B`;
-    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-  };
 
-  const getOptimizationInfo = (index: number) => {
-    const stats = optimizationStats[index];
-    if (!stats) return null;
-    
-    return {
-      originalSize: formatFileSize(stats.originalSize),
-      optimizedSize: formatFileSize(stats.optimizedSize),
-      savings: stats.compressionRatio,
-      dimensions: stats.dimensions
-    };
-  };
 
   return (
     <Card>
@@ -170,113 +141,67 @@ export const ImageUploadForm = ({
                 {images.length}/10 images uploaded
                 {onSetMainImage && " • Click the star to set main image"}
               </p>
-              {optimizationStats.length > 0 && (
-                <div className="text-xs text-green-600 bg-green-50 px-2 py-1 rounded">
-                  Images optimized for fast loading
-                </div>
-              )}
             </div>
             
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              {images.map((image, index) => {
-                const optimizationInfo = getOptimizationInfo(index);
-                
-                return (
-                  <div key={index} className="relative group">
-                    <div className="aspect-square bg-gray-100 rounded-lg overflow-hidden border-2 border-transparent hover:border-blue-300 transition-colors">
-                      <LazyOptimizedImage
-                        src={getImagePreview(image)}
-                        alt={`Product ${index + 1}`}
-                        blurPlaceholder={blurPlaceholders[index]}
-                        aspectRatio="square"
-                        className="w-full h-full"
-                        loadingStrategy="lazy"
-                      />
-                    </div>
-                    
-                    {/* Main image badge */}
-                    {index === mainImageIndex && (
-                      <Badge className="absolute top-2 left-2 bg-blue-600 text-white">
-                        Main
-                      </Badge>
-                    )}
-                    
-                    {/* Optimization info badge */}
-                    {optimizationInfo && (
-                      <Badge 
-                        variant="secondary" 
-                        className="absolute top-2 right-12 bg-green-100 text-green-800 text-xs"
-                        title={`Original: ${optimizationInfo.originalSize} → Optimized: ${optimizationInfo.optimizedSize}`}
-                      >
-                        -{optimizationInfo.savings}%
-                      </Badge>
-                    )}
-                    
-                    {/* Action buttons */}
-                    <div className="absolute top-2 right-2 flex space-x-1">
-                      {onSetMainImage && index !== mainImageIndex && (
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="secondary"
-                          className="h-6 w-6 p-0 bg-white/80 hover:bg-white"
-                          onClick={() => onSetMainImage(index)}
-                          title="Set as main image"
-                        >
-                          <Star className="h-3 w-3" />
-                        </Button>
-                      )}
-                      
+              {images.map((image, index) => (
+                <div key={index} className="relative group">
+                  <div className="aspect-square bg-gray-100 rounded-lg overflow-hidden border-2 border-transparent hover:border-blue-300 transition-colors">
+                    <LazyOptimizedImage
+                      src={getImagePreview(image)}
+                      alt={`Product ${index + 1}`}
+                      blurPlaceholder={blurPlaceholders[index]}
+                      aspectRatio="square"
+                      className="w-full h-full"
+                      loadingStrategy="lazy"
+                    />
+                  </div>
+                  
+                  {/* Main image badge */}
+                  {index === mainImageIndex && (
+                    <Badge className="absolute top-2 left-2 bg-blue-600 text-white">
+                      Main
+                    </Badge>
+                  )}
+                  
+                  {/* Action buttons */}
+                  <div className="absolute top-2 right-2 flex space-x-1">
+                    {onSetMainImage && index !== mainImageIndex && (
                       <Button
                         type="button"
                         size="sm"
-                        variant="destructive"
-                        className="h-6 w-6 p-0"
-                        onClick={() => onRemoveImage(index)}
-                        title="Remove image"
+                        variant="secondary"
+                        className="h-6 w-6 p-0 bg-white/80 hover:bg-white"
+                        onClick={() => onSetMainImage(index)}
+                        title="Set as main image"
                       >
-                        <X className="h-3 w-3" />
+                        <Star className="h-3 w-3" />
                       </Button>
-                    </div>
+                    )}
                     
-                    {/* Image number and size info */}
-                    <div className="absolute bottom-2 left-2 flex space-x-1">
-                      <Badge variant="outline" className="text-xs bg-white/80">
-                        {index + 1}
-                      </Badge>
-                      {optimizationInfo && (
-                        <Badge variant="outline" className="text-xs bg-white/80">
-                          {optimizationInfo.optimizedSize}
-                        </Badge>
-                      )}
-                    </div>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="destructive"
+                      className="h-6 w-6 p-0"
+                      onClick={() => onRemoveImage(index)}
+                      title="Remove image"
+                    >
+                      <X className="h-3 w-3" />
+                    </Button>
                   </div>
-                );
-              })}
-            </div>
-
-            {/* Optimization summary */}
-            {optimizationStats.length > 0 && (
-              <div className="mt-4 p-3 bg-green-50 rounded-lg">
-                <h4 className="text-sm font-medium text-green-800 mb-2">Optimization Results</h4>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs text-green-700">
-                  <div>
-                    <span className="font-medium">Total Images:</span> {optimizationStats.length}
-                  </div>
-                  <div>
-                    <span className="font-medium">Avg. Savings:</span> {
-                      Math.round(optimizationStats.reduce((sum, img) => sum + img.compressionRatio, 0) / optimizationStats.length)
-                    }%
-                  </div>
-                  <div>
-                    <span className="font-medium">Format:</span> WebP (optimized)
-                  </div>
-                  <div>
-                    <span className="font-medium">Max Width:</span> 800px
+                  
+                  {/* Image number */}
+                  <div className="absolute bottom-2 left-2">
+                    <Badge variant="outline" className="text-xs bg-white/80">
+                      {index + 1}
+                    </Badge>
                   </div>
                 </div>
-              </div>
-            )}
+              ))}
+            </div>
+
+
           </div>
         )}
         

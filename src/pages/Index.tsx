@@ -69,7 +69,7 @@ const Index = () => {
   return (
     <>
       <SEOHead
-        title="BlueStore - Ghana's Premier Online Marketplace"
+        title="BlueStore - Ghana's Online Marketplace"
         description="Buy and sell smartphones, laptops, electronics, fashion, automotive parts, and more on Ghana's trusted online marketplace. Safe, secure, and reliable platform for Ghanaians."
         keywords="Ghana marketplace, online shopping Ghana, buy sell Ghana, electronics Ghana, smartphones Ghana, laptops Ghana, fashion Ghana, automotive Ghana, BlueStore"
         structuredData={homepageStructuredData}

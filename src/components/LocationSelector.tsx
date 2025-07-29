@@ -3,9 +3,9 @@ import { useState, useEffect } from "react";
 import { MapPin, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { locationService, Location } from "@/services/locationService";
 import { useToast } from "@/hooks/use-toast";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useLocationContext } from "@/contexts/LocationContext";
 
 interface LocationSelectorProps {
   currentLocation?: string;
@@ -19,59 +19,28 @@ export const LocationSelector = ({
   className = ""
 }: LocationSelectorProps) => {
   const [isOpen, setIsOpen] = useState(false);
-  const [regions, setRegions] = useState<Location[]>([]);
-  const [cities, setCities] = useState<Location[]>([]);
+  const [cities, setCities] = useState<any[]>([]);
   const [selectedRegion, setSelectedRegion] = useState<string>("");
   const [selectedCity, setSelectedCity] = useState<string>("");
-  const [loading, setLoading] = useState(false);
   const { toast } = useToast();
   const isMobile = useIsMobile();
+  
+  // Use the location context
+  const { 
+    regions, 
+    loadingRegions, 
+    loadingCities, 
+    getCitiesByRegion 
+  } = useLocationContext();
 
-  useEffect(() => {
-    loadRegions();
-  }, []);
-
-  const loadRegions = async () => {
-    try {
-      setLoading(true);
-      const regionsData = await locationService.getLocationsByType('region');
-      console.log('Loaded regions:', regionsData);
-      setRegions(regionsData);
-    } catch (error) {
-      console.error('Error loading regions:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load regions. Please refresh the page and try again.",
-        variant: "destructive"
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const loadCities = async (regionId: string) => {
-    try {
-      console.log('Loading cities for region:', regionId);
-      const citiesData = await locationService.getLocationsByParent(regionId);
-      console.log('Loaded cities:', citiesData);
-      setCities(citiesData);
-    } catch (error) {
-      console.error('Error loading cities:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load cities",
-        variant: "destructive"
-      });
-    }
-  };
-
-  const handleRegionChange = (regionId: string) => {
+  const handleRegionChange = async (regionId: string) => {
     console.log('Region changed to:', regionId);
     setSelectedRegion(regionId);
     setSelectedCity("");
     setCities([]);
     if (regionId) {
-      loadCities(regionId);
+      const citiesData = await getCitiesByRegion(regionId);
+      setCities(citiesData);
     }
   };
 
@@ -152,26 +121,20 @@ export const LocationSelector = ({
             <Select 
               value={selectedRegion} 
               onValueChange={handleRegionChange} 
-              disabled={loading || regions.length === 0}
+              disabled={loadingRegions || regions.length === 0}
             >
               <SelectTrigger className="w-full bg-white">
-                <SelectValue placeholder={loading ? "Loading regions..." : "Select a region"} />
+                <SelectValue placeholder={loadingRegions ? "Loading regions..." : "Select a region"} />
               </SelectTrigger>
               <SelectContent className="bg-white border shadow-lg z-[110] max-h-60 overflow-y-auto">
-                {regions.length === 0 && !loading ? (
-                  <SelectItem value="no-regions" disabled>
-                    No regions available
+                {regions.map((region) => (
+                  <SelectItem key={region.id} value={region.id} className="cursor-pointer hover:bg-gray-50">
+                    {region.name}
                   </SelectItem>
-                ) : (
-                  regions.map((region) => (
-                    <SelectItem key={region.id} value={region.id} className="cursor-pointer hover:bg-gray-50">
-                      {region.name}
-                    </SelectItem>
-                  ))
-                )}
+                ))}
               </SelectContent>
             </Select>
-            {regions.length === 0 && !loading && (
+            {regions.length === 0 && !loadingRegions && (
               <p className="text-xs text-red-500 mt-1">
                 No regions found. Please contact support.
               </p>
@@ -183,20 +146,14 @@ export const LocationSelector = ({
               <label className="text-xs text-gray-500 mb-1 block">City *</label>
               <Select value={selectedCity} onValueChange={setSelectedCity}>
                 <SelectTrigger className="w-full bg-white">
-                  <SelectValue placeholder={cities.length === 0 ? "Loading cities..." : "Select a city"} />
+                  <SelectValue placeholder={cities.length === 0 ? (loadingCities ? "Loading cities..." : "Select a city") : "Select a city"} />
                 </SelectTrigger>
                 <SelectContent className="bg-white border shadow-lg z-[110] max-h-60 overflow-y-auto">
-                  {cities.length === 0 ? (
-                    <SelectItem value="no-cities" disabled>
-                      {selectedRegion ? "Loading cities..." : "Select a region first"}
+                  {cities.map((city) => (
+                    <SelectItem key={city.id} value={city.id} className="cursor-pointer hover:bg-gray-50">
+                      {city.name}
                     </SelectItem>
-                  ) : (
-                    cities.map((city) => (
-                      <SelectItem key={city.id} value={city.id} className="cursor-pointer hover:bg-gray-50">
-                        {city.name}
-                      </SelectItem>
-                    ))
-                  )}
+                  ))}
                 </SelectContent>
               </Select>
             </div>
