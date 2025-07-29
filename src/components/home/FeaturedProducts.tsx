@@ -1,9 +1,12 @@
 
-import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
-import { FavoriteButton } from "@/components/FavoriteButton";
 import { OptimizedImage } from "@/components/ui/optimized-image";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { transformProductData } from "@/services/product/productTransforms";
+import React from "react";
 import { memo } from "react";
 
 interface Product {
@@ -129,12 +132,6 @@ export const FeaturedProducts = memo(({ products, loading = false }: FeaturedPro
                           </span>
                         )}
                       </div>
-                      <FavoriteButton 
-                        productId={product.id}
-                        variant="ghost" 
-                        size="sm"
-                        className="h-8 w-8 p-0 hover:bg-red-50"
-                      />
                     </div>
                     <div className="mt-2 text-xs text-gray-500">
                       {product.location}

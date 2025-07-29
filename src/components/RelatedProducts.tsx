@@ -1,11 +1,11 @@
 
 import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
-import { useState, useEffect } from "react";
+import { OptimizedImage } from "@/components/ui/optimized-image";
+import { useEffect, useState } from "react";
 import { productService } from "@/services/productService";
 import { ProductSubmission } from "@/types/product";
-import { FavoriteButton } from "@/components/FavoriteButton";
-import { OptimizedImage } from "@/components/ui/optimized-image";
 
 interface RelatedProductsProps {
   currentProductId: string;
@@ -113,7 +113,6 @@ export const RelatedProducts = ({ currentProductId, category }: RelatedProductsP
                     </span>
                   )}
                 </div>
-                <FavoriteButton productId={product.id} />
               </div>
               
               {product.originalPrice && parseFloat(product.originalPrice) > parseFloat(product.price) && (

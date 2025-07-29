@@ -4,7 +4,6 @@ import { Button } from "@/components/ui/button";
 import { Edit, TrendingDown } from "lucide-react";
 import { Link } from "react-router-dom";
 import { ProductSubmission } from "@/types/product";
-import { FavoriteButton } from "@/components/FavoriteButton";
 import { OptimizedImage } from "@/components/ui/optimized-image";
 
 interface ProductGridProps {
@@ -104,12 +103,6 @@ export const ProductGrid = ({ products, loading, showEditButtons = false, onEdit
                     </span>
                   )}
                 </div>
-                <FavoriteButton 
-                  productId={product.id}
-                  variant="ghost" 
-                  size="sm"
-                  className="h-8 w-8 p-0 hover:bg-red-50"
-                />
               </div>
               
               {/* Show savings amount for clearance items */}
