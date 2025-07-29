@@ -17,11 +17,18 @@ import { dataService, VendorProfile as VendorProfileType } from "@/services/data
 import { productService } from "@/services/productService";
 import { ProductSubmission } from "@/types/product";
 import { paymentService } from "@/services/paymentService";
+import { useOnlineStatus } from "@/hooks/useOnlineStatus";
+import { CompactOnlineStatus } from "@/components/OnlineStatusIndicator";
 
 const VendorProfile = () => {
   const { vendorId } = useParams<{ vendorId: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
+
+  // Online status hook
+  const { status: onlineStatus, loading: statusLoading } = useOnlineStatus({
+    vendorId: vendorId || undefined
+  });
 
   const { data: vendor, isLoading, error } = useQuery({
     queryKey: ['vendor-profile', vendorId],
@@ -337,6 +344,9 @@ const VendorProfile = () => {
                   <div className="flex items-center space-x-2">
                     {getVerificationBadge()}
                     {isOwnProfile && getActivePackageInfo()}
+                    {!isOwnProfile && onlineStatus && (
+                      <CompactOnlineStatus status={onlineStatus} />
+                    )}
                   </div>
                 </div>
               </div>

@@ -11,6 +11,7 @@ import { User, Bell, Settings as SettingsIcon, Shield, Mail, Phone, MapPin } fro
 import { useAuth } from "@/hooks/useAuth";
 import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
+import { OnlineStatusSettings } from "@/components/OnlineStatusSettings";
 
 const Settings = () => {
   const { user } = useAuth();
@@ -269,6 +270,9 @@ const Settings = () => {
             </Button>
           </CardContent>
         </Card>
+
+        {/* Online Status Settings */}
+        <OnlineStatusSettings />
 
         {/* App Preferences */}
         <Card>
