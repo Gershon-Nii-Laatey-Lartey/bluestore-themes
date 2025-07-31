@@ -24,7 +24,17 @@ export const useOnlineStatus = (options: UseOnlineStatusOptions = {}) => {
       setLoading(true);
       setError(null);
       const vendorStatus = await onlineStatusService.getVendorOnlineStatus(vendorId);
-      setStatus(vendorStatus);
+      
+      if (vendorStatus) {
+        // Calculate actual online status based on 5-minute threshold
+        const isActuallyOnline = await onlineStatusService.getCurrentOnlineStatus(vendorId);
+        setStatus({
+          ...vendorStatus,
+          is_online: isActuallyOnline
+        });
+      } else {
+        setStatus(null);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch online status');
     } finally {

@@ -44,6 +44,7 @@ import FAQ from "./pages/FAQ";
 
 import Terms from "./pages/Terms";
 import KYC from "./pages/KYC";
+import VerificationSuccess from "./pages/VerificationSuccess";
 import CSWorkerDashboard from "./pages/CSWorkerDashboard";
 import { useAuth } from "@/hooks/useAuth";
 import { useState, useEffect } from "react";
@@ -190,6 +191,11 @@ const App = () => (
               <VendorProtectedRoute>
                 <KYC />
               </VendorProtectedRoute>
+            } />
+            <Route path="/verification-success" element={
+              <ProtectedRoute>
+                <VerificationSuccess />
+              </ProtectedRoute>
             } />
             <Route path="/vendor-required" element={<VendorRequired />} />
             <Route path="/create-vendor-profile" element={<CreateVendorProfile />} />

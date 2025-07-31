@@ -16,6 +16,13 @@ class OnlineStatusService {
     autoOfflineEnabled: true
   };
 
+  // WebSocket connection tracking for real-time status
+  private wsConnections = new Map<string, { 
+    connected: boolean; 
+    lastPing: number; 
+    userId: string;
+  }>();
+
   // Track user activity
   async trackActivity(activityType: ActivityType, metadata?: Record<string, any>): Promise<void> {
     try {
@@ -32,9 +39,135 @@ class OnlineStatusService {
 
       if (error) {
         console.error('Error tracking activity:', error);
+        return;
       }
+
+      // Update online status based on activity and preference
+      await this.updateOnlineStatusBasedOnActivity(activityType);
     } catch (error) {
       console.error('Error tracking activity:', error);
+    }
+  }
+
+  // Update online status based on activity and user preference
+  private async updateOnlineStatusBasedOnActivity(activityType: ActivityType): Promise<void> {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Get current vendor profile
+      const { data: vendorProfile, error } = await supabase
+        .from('vendor_profiles')
+        .select('is_online, last_seen, online_status_preference')
+        .eq('user_id', user.id)
+        .single();
+
+      if (error || !vendorProfile) return;
+
+      const now = new Date().toISOString();
+      const preference = vendorProfile.online_status_preference || 'auto';
+      
+      // Determine if user should be online based on activity and preference
+      let shouldBeOnline = false;
+      
+      switch (preference) {
+        case 'always_online':
+          shouldBeOnline = true;
+          break;
+        case 'always_offline':
+          shouldBeOnline = false;
+          break;
+        case 'manual':
+          // Keep current status for manual mode
+          shouldBeOnline = vendorProfile.is_online;
+          break;
+        case 'auto':
+        default:
+          // For auto mode, check if activity is recent (within 5 minutes)
+          if (activityType === 'logout') {
+            shouldBeOnline = false;
+          } else {
+            const lastSeenDate = new Date(vendorProfile.last_seen);
+            const diffInMinutes = (new Date().getTime() - lastSeenDate.getTime()) / (1000 * 60);
+            shouldBeOnline = diffInMinutes <= this.config.offlineThreshold;
+          }
+          break;
+      }
+
+      // Only update if status actually changed
+      if (vendorProfile.is_online !== shouldBeOnline) {
+        await supabase
+          .from('vendor_profiles')
+          .update({
+            is_online: shouldBeOnline,
+            last_seen: now
+          })
+          .eq('user_id', user.id);
+      } else {
+        // Just update last_seen if status didn't change
+        await supabase
+          .from('vendor_profiles')
+          .update({
+            last_seen: now
+          })
+          .eq('user_id', user.id);
+      }
+    } catch (error) {
+      console.error('Error updating online status:', error);
+    }
+  }
+
+  // Track WebSocket connection
+  trackWebSocketConnection(userId: string, connected: boolean): void {
+    const now = Date.now();
+    
+    if (connected) {
+      this.wsConnections.set(userId, {
+        connected: true,
+        lastPing: now,
+        userId
+      });
+      
+      // Update database immediately
+      this.updateConnectionStatus(userId, true);
+    } else {
+      this.wsConnections.delete(userId);
+      this.updateConnectionStatus(userId, false);
+    }
+  }
+
+  // Update connection status in database
+  private async updateConnectionStatus(userId: string, connected: boolean): Promise<void> {
+    try {
+      await supabase
+        .from('vendor_profiles')
+        .update({
+          is_online: connected,
+          last_seen: new Date().toISOString(),
+          connection_status: connected ? 'connected' : 'disconnected'
+        })
+        .eq('user_id', userId);
+    } catch (error) {
+      console.error('Error updating connection status:', error);
+    }
+  }
+
+  // Check if user is actually connected (for push notifications)
+  isUserConnected(userId: string): boolean {
+    const connection = this.wsConnections.get(userId);
+    if (!connection) return false;
+    
+    // Consider user offline if no ping in last 30 seconds
+    const now = Date.now();
+    const timeSinceLastPing = now - connection.lastPing;
+    return connection.connected && timeSinceLastPing < 30000;
+  }
+
+  // Send ping to keep connection alive
+  sendPing(userId: string): void {
+    const connection = this.wsConnections.get(userId);
+    if (connection) {
+      connection.lastPing = Date.now();
     }
   }
 
@@ -270,6 +403,42 @@ class OnlineStatusService {
       this.stopHeartbeat();
     } catch (error) {
       console.error('Error during online status cleanup:', error);
+    }
+  }
+
+  // Get current online status with proper calculation
+  async getCurrentOnlineStatus(userId?: string): Promise<boolean> {
+    try {
+      const targetUserId = userId || (await supabase.auth.getUser()).data?.user?.id;
+      if (!targetUserId) return false;
+
+      const { data: vendorProfile, error } = await supabase
+        .from('vendor_profiles')
+        .select('is_online, last_seen, online_status_preference')
+        .eq('user_id', targetUserId)
+        .single();
+
+      if (error || !vendorProfile) return false;
+
+      const preference = vendorProfile.online_status_preference || 'auto';
+      
+      switch (preference) {
+        case 'always_online':
+          return true;
+        case 'always_offline':
+          return false;
+        case 'manual':
+          return vendorProfile.is_online;
+        case 'auto':
+        default:
+          // Check if last activity was within 5 minutes
+          const lastSeenDate = new Date(vendorProfile.last_seen);
+          const diffInMinutes = (new Date().getTime() - lastSeenDate.getTime()) / (1000 * 60);
+          return diffInMinutes <= this.config.offlineThreshold;
+      }
+    } catch (error) {
+      console.error('Error getting current online status:', error);
+      return false;
     }
   }
 }

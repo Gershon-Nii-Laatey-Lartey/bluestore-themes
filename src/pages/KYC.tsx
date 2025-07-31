@@ -112,7 +112,7 @@ const KYC = () => {
         description: "Your verification documents have been submitted for review. You'll be notified within 24-48 hours."
       });
       
-              navigate(`/vendor/${user?.id}`);
+      navigate('/verification-success');
     } catch (error) {
       console.error('KYC submission error:', error);
       toast({
