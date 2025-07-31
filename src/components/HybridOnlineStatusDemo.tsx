@@ -3,12 +3,27 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useOwnHybridOnlineStatus } from "@/hooks/useHybridOnlineStatus";
-import { Circle, Wifi, WifiOff, Clock, Bell, BellOff } from "lucide-react";
+import { Circle, Wifi, WifiOff, Clock, Bell, BellOff, Eye, EyeOff, Smartphone } from "lucide-react";
 
 export const HybridOnlineStatusDemo: React.FC = () => {
   const { status, loading, checkOwnPushNotification } = useOwnHybridOnlineStatus();
   const [pushDecision, setPushDecision] = useState<any>(null);
   const [testing, setTesting] = useState(false);
+  const [viewportStatus, setViewportStatus] = useState<'visible' | 'hidden'>('visible');
+
+  // Track viewport status
+  React.useEffect(() => {
+    const handleVisibilityChange = () => {
+      setViewportStatus(document.hidden ? 'hidden' : 'visible');
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    setViewportStatus(document.hidden ? 'hidden' : 'visible');
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, []);
 
   const testPushNotification = async (type: 'chat' | 'orders' | 'marketing') => {
     setTesting(true);
@@ -38,6 +53,14 @@ export const HybridOnlineStatusDemo: React.FC = () => {
       case 'preference_override': return <Bell className="h-4 w-4" />;
       case 'offline': return <WifiOff className="h-4 w-4" />;
       default: return <BellOff className="h-4 w-4" />;
+    }
+  };
+
+  const getViewportIcon = (status: string) => {
+    switch (status) {
+      case 'visible': return <Eye className="h-4 w-4 text-green-600" />;
+      case 'hidden': return <EyeOff className="h-4 w-4 text-red-600" />;
+      default: return <Smartphone className="h-4 w-4 text-gray-600" />;
     }
   };
 
@@ -89,6 +112,51 @@ export const HybridOnlineStatusDemo: React.FC = () => {
             <div className="mt-1 text-sm">
               {status?.last_seen ? new Date(status.last_seen).toLocaleString() : 'Unknown'}
             </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Viewport Status */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            {getViewportIcon(viewportStatus)}
+            Viewport Status
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-medium text-gray-500">Current Viewport:</span>
+            <Badge 
+              variant={viewportStatus === 'visible' ? "default" : "secondary"}
+              className="flex items-center gap-1"
+            >
+              {getViewportIcon(viewportStatus)}
+              {viewportStatus === 'visible' ? 'Visible' : 'Hidden'}
+            </Badge>
+          </div>
+
+          <div className="text-sm text-gray-600 space-y-2">
+            <div className="flex items-start gap-2">
+              <Circle className="h-3 w-3 text-green-500 mt-1 flex-shrink-0" />
+              <div>
+                <span className="font-medium">Visible Viewport:</span> 
+                User is actively using the app → Don't send push notifications
+              </div>
+            </div>
+            <div className="flex items-start gap-2">
+              <Circle className="h-3 w-3 text-blue-500 mt-1 flex-shrink-0" />
+              <div>
+                <span className="font-medium">Hidden Viewport:</span> 
+                User left the app → Good time to send push notifications
+              </div>
+            </div>
+          </div>
+
+          <div className="p-3 bg-blue-50 rounded-lg">
+            <p className="text-sm text-blue-800">
+              <strong>Tip:</strong> Try switching to another tab or minimizing this window to see how viewport status changes!
+            </p>
           </div>
         </CardContent>
       </Card>
@@ -164,6 +232,14 @@ export const HybridOnlineStatusDemo: React.FC = () => {
                   {pushDecision.connectionStatus}
                 </Badge>
               </div>
+
+              <div className="flex items-center justify-between">
+                <span className="font-medium">Viewport:</span>
+                <Badge variant="outline" className="flex items-center gap-1">
+                  {getViewportIcon(pushDecision.viewportStatus)}
+                  {pushDecision.viewportStatus}
+                </Badge>
+              </div>
             </div>
           )}
         </CardContent>
@@ -172,38 +248,44 @@ export const HybridOnlineStatusDemo: React.FC = () => {
       {/* How It Works */}
       <Card>
         <CardHeader>
-          <CardTitle>How Hybrid Status Works</CardTitle>
+          <CardTitle>How WhatsApp-Style Viewport Tracking Works</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="space-y-2 text-sm">
             <div className="flex items-start gap-2">
               <Circle className="h-3 w-3 text-green-500 mt-1 flex-shrink-0" />
               <div>
-                <span className="font-medium">1. WebSocket Connection (High Priority):</span> 
-                If user has active WebSocket connection → Send push notification
-              </div>
-            </div>
-            <div className="flex items-start gap-2">
-              <Circle className="h-3 w-3 text-yellow-500 mt-1 flex-shrink-0" />
-              <div>
-                <span className="font-medium">2. Recent Activity (Medium Priority):</span> 
-                If user was active within 2 minutes → Send push notification
+                <span className="font-medium">1. Viewport Visible (High Priority):</span> 
+                User is actively using the app → Don't send push notifications
               </div>
             </div>
             <div className="flex items-start gap-2">
               <Circle className="h-3 w-3 text-blue-500 mt-1 flex-shrink-0" />
               <div>
-                <span className="font-medium">3. Preference Override (Low Priority):</span> 
-                If user has "Always Online" or specific notification enabled → Send push
+                <span className="font-medium">2. Viewport Hidden + Connected:</span> 
+                User left app but still connected → Send push notifications
+              </div>
+            </div>
+            <div className="flex items-start gap-2">
+              <Circle className="h-3 w-3 text-yellow-500 mt-1 flex-shrink-0" />
+              <div>
+                <span className="font-medium">3. Viewport Hidden + Recent Activity:</span> 
+                User was active recently and left app → Send push notifications
               </div>
             </div>
             <div className="flex items-start gap-2">
               <Circle className="h-3 w-3 text-gray-500 mt-1 flex-shrink-0" />
               <div>
                 <span className="font-medium">4. Default (No Push):</span> 
-                User is offline and inactive → Don't send push notification
+                User is offline or viewport visible → Don't send push notifications
               </div>
             </div>
+          </div>
+
+          <div className="p-3 bg-yellow-50 rounded-lg">
+            <p className="text-sm text-yellow-800">
+              <strong>Like WhatsApp:</strong> This system detects when you switch tabs, minimize the window, or close the app, just like messaging apps do!
+            </p>
           </div>
         </CardContent>
       </Card>
